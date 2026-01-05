@@ -1,4 +1,4 @@
-# @piyoraik/ffxiv-lodestone-character-lookup
+# ffxiv-lodestone-character-lookup
 
 FFXIV の Lodestone を使って、以下を行うための共通ライブラリです。
 
@@ -46,9 +46,7 @@ const result = parseUltimateClearsFromAchievementHtml(html);
 console.log(result);
 ```
 
-## 公開API（関数の挙動）
-
-## API一覧（概要）
+## 関数一覧
 
 | 関数 | 返り値 | 用途 |
 |---|---|---|
@@ -63,7 +61,8 @@ console.log(result);
 
 ## 対応アチーブメント（高難度）
 
-このライブラリが達成判定に対応しているアチーブメントの一覧です（`getHighEndAchievements()` の内容と同じ）。
+このライブラリが達成判定に対応しているアチーブメントの一覧です。
+アップデートごとにベストエフォートで更新し、必要であればIssueやプルリクを頂ければ優先的に対応します。
 
 | 種別 | 略称 | 正式名 |
 |---|---|---|
