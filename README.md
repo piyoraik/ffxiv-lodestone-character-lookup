@@ -17,8 +17,7 @@ FFXIV の Lodestone を使って、以下を行うための共通ライブラリ
 yarn add @piyoraik/ffxiv-lodestone-character-lookup
 ```
 
-## 最短の使い方（募集者 → Lodestone URL → クリア判定）
-
+## 使い方
 ```ts
 import {
   parseCreator,
@@ -59,7 +58,7 @@ console.log(result);
 | `parseCreator(creator)` | `{ name, world } \| undefined` | `Name @ World` を分解 |
 | `buildLodestoneSearchUrl(info)` | `string` | キャラクター検索URLを生成 |
 | `fetchTopCharacterUrl(searchUrl)` | `Promise<string \| undefined>` | 検索結果の先頭ヒットのキャラURLを取得 |
-| `buildAchievementCategoryUrl(characterUrl)` | `string \| undefined` | カテゴリ4のアチーブURLを生成 |
+| `buildAchievementCategoryUrl(characterUrl)` | `string \| undefined` | カテゴリ4(レイド)のアチーブURLを生成 |
 | `fetchAchievementCategoryHtml(url)` | `Promise<string>` | アチーブHTMLを取得 |
 | `parseUltimateClearsFromAchievementHtml(html)` | `{ status, clears }` | 高難度（絶/零式）達成状況を抽出 |
 | `getHighEndAchievements()` | `HighEndAchievementDefinition[]` | 同梱定義（正式名/略称/種別）を取得 |
