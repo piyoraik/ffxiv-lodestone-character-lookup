@@ -9,20 +9,14 @@ export type CreatorInfo = {
 };
 
 /**
- * `募集者: キャラクター名 @ サーバー名` 形式の文字列から、名前/ワールドを取り出します。
+ * キャラクター名とワールド名から、検索用の情報を作ります。
  */
-export function parseCreator(creator: string): CreatorInfo | undefined {
-  const raw = creator.trim();
-  if (!raw) return undefined;
+export function parseCreator(name: string, world: string): CreatorInfo | undefined {
+  const normalizedName = name.trim();
+  const normalizedWorld = world.trim();
+  if (!normalizedName || !normalizedWorld) return undefined;
 
-  const at = raw.lastIndexOf("@");
-  if (at === -1) return undefined;
-
-  const name = raw.slice(0, at).trim();
-  const world = raw.slice(at + 1).trim();
-  if (!name || !world) return undefined;
-
-  return { name, world };
+  return { name: normalizedName, world: normalizedWorld };
 }
 
 /**

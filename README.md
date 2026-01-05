@@ -2,7 +2,7 @@
 
 FFXIV の Lodestone を使って、以下を行うための共通ライブラリです。
 
-- `募集者: キャラクター名 @ サーバー名` をパースして検索パラメータを作る
+- `キャラクター名` と `サーバー名` から検索パラメータを作る
 - キャラクター検索の先頭ヒットから「キャラクターURL（/lodestone/character/.../）」を取得する
 - キャラクターの「アチーブメント（カテゴリ4）」ページから、高難度（絶/零式）の達成状況を判定する
 
@@ -28,9 +28,8 @@ import {
   parseUltimateClearsFromAchievementHtml
 } from "@piyoraik/ffxiv-lodestone-character-lookup";
 
-// 例: xivpf などの「募集者」表示に合わせた形式
-const creator = parseCreator("Hoge Fuga @ World");
-if (!creator) throw new Error("募集者の形式が不正です");
+const creator = parseCreator("Hoge Fuga", "World");
+if (!creator) throw new Error("キャラクター名/ワールド名が不正です");
 
 // 1) Lodestoneの検索URLを作る
 const searchUrl = buildLodestoneSearchUrl(creator);
@@ -55,7 +54,7 @@ console.log(result);
 
 | 関数 | 返り値 | 用途 |
 |---|---|---|
-| `parseCreator(creator)` | `{ name, world } \| undefined` | `Name @ World` を分解 |
+| `parseCreator(name, world)` | `{ name, world } \| undefined` | `name` と `world` を正規化 |
 | `buildLodestoneSearchUrl(info)` | `string` | キャラクター検索URLを生成 |
 | `fetchTopCharacterUrl(searchUrl)` | `Promise<string \| undefined>` | 検索結果の先頭ヒットのキャラURLを取得 |
 | `buildAchievementCategoryUrl(characterUrl)` | `string \| undefined` | カテゴリ4(レイド)のアチーブURLを生成 |
