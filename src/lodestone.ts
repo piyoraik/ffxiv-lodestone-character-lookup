@@ -9,17 +9,6 @@ export type CreatorInfo = {
 };
 
 /**
- * キャラクター名とワールド名から、検索用の情報を作ります。
- */
-export function parseCreator(name: string, world: string): CreatorInfo | undefined {
-  const normalizedName = name.trim();
-  const normalizedWorld = world.trim();
-  if (!normalizedName || !normalizedWorld) return undefined;
-
-  return { name: normalizedName, world: normalizedWorld };
-}
-
-/**
  * Lodestone のキャラクター検索URLを生成します。
  * 例:
  * `https://jp.finalfantasyxiv.com/lodestone/character/?q=Noah+Stella&worldname=Asura&...`

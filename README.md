@@ -20,7 +20,6 @@ yarn add @piyoraik/ffxiv-lodestone-character-lookup
 ## 使い方
 ```ts
 import {
-  parseCreator,
   buildLodestoneSearchUrl,
   fetchTopCharacterUrl,
   buildAchievementCategoryUrl,
@@ -28,8 +27,7 @@ import {
   parseUltimateClearsFromAchievementHtml
 } from "@piyoraik/ffxiv-lodestone-character-lookup";
 
-const creator = parseCreator("Hoge Fuga", "World");
-if (!creator) throw new Error("キャラクター名/ワールド名が不正です");
+const creator = { name: "Hoge Fuga", world: "World" };
 
 // 1) Lodestoneの検索URLを作る
 const searchUrl = buildLodestoneSearchUrl(creator);
@@ -54,7 +52,6 @@ console.log(result);
 
 | 関数 | 返り値 | 用途 |
 |---|---|---|
-| `parseCreator(name, world)` | `{ name, world } \| undefined` | `name` と `world` を正規化 |
 | `buildLodestoneSearchUrl(info)` | `string` | キャラクター検索URLを生成 |
 | `fetchTopCharacterUrl(searchUrl)` | `Promise<string \| undefined>` | 検索結果の先頭ヒットのキャラURLを取得 |
 | `buildAchievementCategoryUrl(characterUrl)` | `string \| undefined` | カテゴリ4(レイド)のアチーブURLを生成 |

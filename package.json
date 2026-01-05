@@ -1,6 +1,6 @@
 {
   "name": "@piyoraik/ffxiv-lodestone-character-lookup",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "FFXIV Lodestone character lookup (search → character URL) and high-end achievement checks",
   "license": "MIT",
   "author": "",
