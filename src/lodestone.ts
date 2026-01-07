@@ -8,6 +8,15 @@ export type CreatorInfo = {
   world: string;
 };
 
+export type CharacterSearchStatus = "ok" | "private" | "ng";
+
+export type CharacterSearchReason = "search_hidden" | "empty_html" | "structure_mismatch" | "http_error";
+
+export type CharacterSearchResult =
+  | { status: "ok"; characterUrl: string }
+  | { status: "private"; reason: CharacterSearchReason }
+  | { status: "ng"; reason: CharacterSearchReason };
+
 /**
  * Lodestone のキャラクター検索URLを生成します。
  * 例:
@@ -40,26 +49,38 @@ export function buildLodestoneSearchUrl(info: CreatorInfo): string {
 /**
  * キャラクター検索結果HTMLから、先頭に表示されるキャラクターURLを取得します。
  */
-export function parseTopCharacterUrlFromSearchHtml(html: string): string | undefined {
-  const $ = cheerio.load(html);
+function parseTopCharacterResultFromSearchHtml(html: string): CharacterSearchResult {
+  const raw = html.trim();
+  if (!raw) return { status: "ng", reason: "empty_html" };
+
+  const $ = cheerio.load(raw);
   const href = $("a.entry__link").first().attr("href");
-  if (!href) return undefined;
-  return new URL(href, LODESTONE_BASE_URL).toString();
+  if (href) return { status: "ok", characterUrl: new URL(href, LODESTONE_BASE_URL).toString() };
+
+  if ($("li.entry").length === 0) {
+    return { status: "private", reason: "search_hidden" };
+  }
+
+  return { status: "ng", reason: "structure_mismatch" };
 }
 
 /**
- * Lodestone のキャラクター検索を行い、先頭にヒットしたキャラクターURLを返します。
+ * Lodestone のキャラクター検索を行い、検索結果の状態を返します。
  */
-export async function fetchTopCharacterUrl(searchUrl: string): Promise<string | undefined> {
-  const response = await axios.get<string>(searchUrl, {
-    responseType: "text",
-    headers: {
-      Accept: "text/html,application/xhtml+xml",
-      "Accept-Language": "ja,en;q=0.8",
-      "User-Agent": "ffxiv-lodestone-character-lookup/0.1 (+https://jp.finalfantasyxiv.com)"
-    },
-    timeout: 30_000
-  });
+export async function fetchTopCharacterResult(searchUrl: string): Promise<CharacterSearchResult> {
+  try {
+    const response = await axios.get<string>(searchUrl, {
+      responseType: "text",
+      headers: {
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "ja,en;q=0.8",
+        "User-Agent": "ffxiv-lodestone-character-lookup/0.1 (+https://jp.finalfantasyxiv.com)"
+      },
+      timeout: 30_000
+    });
 
-  return parseTopCharacterUrlFromSearchHtml(response.data);
+    return parseTopCharacterResultFromSearchHtml(response.data);
+  } catch {
+    return { status: "ng", reason: "http_error" };
+  }
 }

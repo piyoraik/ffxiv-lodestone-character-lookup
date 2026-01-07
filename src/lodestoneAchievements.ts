@@ -1,155 +1,178 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 const LODESTONE_BASE_URL = "https://jp.finalfantasyxiv.com";
-const HIGH_END_CATEGORY_ID = 4;
-const DEFINITIONS_FILE = resolve(__dirname, "data", "high_end_achievements_ja.json");
+const DEFINITIONS_DIR = resolve(__dirname, "data", "achievements");
 
 /**
- * 高難度（絶/零式）アチーブの正式名と表示用略称の定義（SSOT）。
+ * アチーブメントの正式名定義（SSOT）。
  *
- * 定義は `high_end_achievements_ja.json` を同梱して読み取ります。
+ * 定義は `data/achievements/*.json` を同梱して読み取ります。
  */
-export type HighEndAchievementGroup = "ultimate" | "savage";
-
-export type HighEndAchievementDefinition = {
+export type AchievementDefinition = {
   name: string;
-  short: string;
-  group: HighEndAchievementGroup;
 };
 
-type HighEndAchievementsJa = {
+export type AchievementCategoryDefinition = {
   version: number;
-  achievements: HighEndAchievementDefinition[];
+  category: string;
+  categoryId: number;
+  achievements: AchievementDefinition[];
 };
 
-let cachedDefinitions: HighEndAchievementDefinition[] | undefined;
-let cachedShortMap: Map<string, string> | undefined;
-let cachedGroupMap: Map<string, HighEndAchievementGroup> | undefined;
-let cachedNameSet: Set<string> | undefined;
+let cachedCategoryDefinitions: Map<string, AchievementCategoryDefinition> | undefined;
+const cachedNameSets = new Map<string, Set<string>>();
 
-function loadDefinitions(): HighEndAchievementDefinition[] {
-  if (cachedDefinitions) return cachedDefinitions;
-  const rawText = readFileSync(DEFINITIONS_FILE, "utf8");
-  const raw = JSON.parse(rawText) as HighEndAchievementsJa;
-  cachedDefinitions = raw.achievements ?? [];
-  return cachedDefinitions;
-}
-
-/**
- * 高難度アチーブ定義を取得します。
- */
-export function getHighEndAchievements(): HighEndAchievementDefinition[] {
-  return loadDefinitions();
-}
-
-export type HighEndAchievementName = string;
-
-/**
- * 互換用: 旧型名（`UltimateAchievementName`）。
- */
-export type UltimateAchievementName = HighEndAchievementName;
-
-/**
- * 互換用: 旧API名（`getUltimateAchievements`）。
- */
-export function getUltimateAchievements(): HighEndAchievementDefinition[] {
-  return getHighEndAchievements();
-}
-
-/**
- * 正式名 → 略称のルックアップを返します。
- */
-export function getHighEndAchievementShortMap(): Map<HighEndAchievementName, string> {
-  if (cachedShortMap) return cachedShortMap;
-  const map = new Map<string, string>();
-  for (const a of loadDefinitions()) map.set(a.name, a.short);
-  cachedShortMap = map;
+function loadCategoryDefinitions(): Map<string, AchievementCategoryDefinition> {
+  if (cachedCategoryDefinitions) return cachedCategoryDefinitions;
+  const files = readdirSync(DEFINITIONS_DIR).filter((file) => file.endsWith(".json"));
+  const map = new Map<string, AchievementCategoryDefinition>();
+  for (const file of files) {
+    const rawText = readFileSync(resolve(DEFINITIONS_DIR, file), "utf8");
+    const raw = JSON.parse(rawText) as AchievementCategoryDefinition;
+    if (!raw.category || !Array.isArray(raw.achievements)) continue;
+    map.set(raw.category, raw);
+  }
+  cachedCategoryDefinitions = map;
   return map;
 }
 
-/**
- * 互換用: 旧API名（`getUltimateAchievementShortMap`）。
- */
-export function getUltimateAchievementShortMap(): Map<HighEndAchievementName, string> {
-  return getHighEndAchievementShortMap();
+function loadDefinitions(category: string): AchievementDefinition[] {
+  const raw = loadCategoryDefinitions().get(category);
+  const definitions = raw?.achievements ?? [];
+  return definitions;
 }
 
 /**
- * 正式名 → 種別（絶/零式）のルックアップを返します。
+ * カテゴリ指定でアチーブ定義を取得します。
  */
-export function getHighEndAchievementGroupMap(): Map<HighEndAchievementName, HighEndAchievementGroup> {
-  if (cachedGroupMap) return cachedGroupMap;
-  const map = new Map<string, HighEndAchievementGroup>();
-  for (const a of loadDefinitions()) map.set(a.name, a.group);
-  cachedGroupMap = map;
-  return map;
+export function getAchievementDefinitions(category: string): AchievementDefinition[] {
+  return loadDefinitions(category);
 }
 
 /**
- * 互換用: 旧API名（`getUltimateAchievementGroupMap`）。
+ * 全カテゴリのアチーブ定義を取得します。
  */
-export function getUltimateAchievementGroupMap(): Map<HighEndAchievementName, HighEndAchievementGroup> {
-  return getHighEndAchievementGroupMap();
+export function getAllAchievementDefinitions(): AchievementDefinition[] {
+  const all: AchievementDefinition[] = [];
+  for (const category of loadCategoryDefinitions().keys()) {
+    all.push(...loadDefinitions(category));
+  }
+  return all;
 }
 
-function getHighEndAchievementNameSet(): Set<string> {
-  if (cachedNameSet) return cachedNameSet;
-  cachedNameSet = new Set(loadDefinitions().map((a) => a.name));
-  return cachedNameSet;
+/**
+ * カテゴリ定義一覧を取得します。
+ */
+export function getAchievementCategoryDefinitions(): AchievementCategoryDefinition[] {
+  return Array.from(loadCategoryDefinitions().values());
+}
+
+function getAchievementNameSet(category: string): Set<string> {
+  const cached = cachedNameSets.get(category);
+  if (cached) return cached;
+  const nameSet = new Set(loadDefinitions(category).map((a) => a.name));
+  cachedNameSets.set(category, nameSet);
+  return nameSet;
 }
 
 /**
  * キャラクターURL（例: `https://.../lodestone/character/12345/`）から characterId を抽出します。
  */
-export function parseCharacterIdFromUrl(characterUrl: string): string | undefined {
+function parseCharacterIdFromUrl(characterUrl: string): string | undefined {
   const match = characterUrl.match(/\/lodestone\/character\/(\d+)\//);
   return match?.[1];
 }
 
 /**
- * Lodestone のアチーブメント一覧URL（カテゴリ指定）を生成します。
+ * カテゴリ名から、LodestoneのカテゴリIDを取得します。
  */
-export function buildHighEndAchievementCategoryUrl(characterUrl: string): string | undefined {
+export function getAchievementCategoryId(category: string): number | undefined {
+  return loadCategoryDefinitions().get(category)?.categoryId;
+}
+
+/**
+ * カテゴリ名を指定して、Lodestone のアチーブメント一覧URLを生成します。
+ */
+function buildAchievementCategoryUrlByCategory(characterUrl: string, category: string): string | undefined {
+  const categoryId = getAchievementCategoryId(category);
+  if (!categoryId) return undefined;
   const characterId = parseCharacterIdFromUrl(characterUrl);
   if (!characterId) return undefined;
   return new URL(
-    `/lodestone/character/${characterId}/achievement/category/${HIGH_END_CATEGORY_ID}/#anchor_achievement`,
+    `/lodestone/character/${characterId}/achievement/category/${categoryId}/#anchor_achievement`,
     LODESTONE_BASE_URL
   ).toString();
 }
 
-/**
- * 互換用: 旧API名（`buildAchievementCategoryUrl`）。
- */
-export function buildAchievementCategoryUrl(characterUrl: string): string | undefined {
-  return buildHighEndAchievementCategoryUrl(characterUrl);
-}
+export type HighEndAchievementStatus = "ok" | "private" | "ng";
 
-export type HighEndAchievementParseResult = {
-  status: "ok" | "private_or_unavailable";
-  clears: string[];
+export type HighEndAchievementStatusReason =
+  | "achievements_private"
+  | "unknown_category"
+  | "http_403"
+  | "http_error"
+  | "empty_html"
+  | "structure_mismatch"
+  | "invalid_character_url";
+
+export type AchievementEntry = {
+  name: string;
+  date: string | null;
+  requirement?: string | null;
+};
+
+export type HighEndAchievementDetailResult = {
+  status: HighEndAchievementStatus;
+  reason?: HighEndAchievementStatusReason;
+  lodestone: string;
+  achievements: Record<string, AchievementEntry[]>;
 };
 
 /**
- * 互換用: 旧型名（`UltimateAchievementParseResult`）。
- */
-export type UltimateAchievementParseResult = HighEndAchievementParseResult;
-
-/**
- * アチーブメント一覧HTMLから、指定した高難度（絶/零式）アチーブの達成状況を判定します。
+ * アチーブメント一覧HTMLから、指定カテゴリのアチーブ達成状況を抽出します。
  *
- * 判定方法:
- * - 対象の `<li class="entry">` 内に `time.entry__activity__time` が存在するか（=日付が入る）
+ * - `date` が取得できない場合は `null`
+ * - 対象アチーブが1件も見つからない場合は `private`
  */
-export function parseHighEndClearsFromAchievementHtml(html: string): HighEndAchievementParseResult {
+function parseAchievementDetailsFromHtml(
+  html: string,
+  characterUrl: string,
+  category: string
+): HighEndAchievementDetailResult {
   const $ = cheerio.load(html);
-
-  const targetSet = getHighEndAchievementNameSet();
-  const clears = new Set<string>();
+  const targetSet = getAchievementNameSet(category);
+  const entries: AchievementEntry[] = [];
   let foundAny = false;
+  const totalEntries = $("li.entry").length;
+  const bodyText = $("body").text();
+  const isPrivate =
+    bodyText.includes("非公開") || bodyText.includes("プライバシー") || bodyText.includes("公開されていません");
+
+  if (!html.trim()) {
+    return {
+      status: "ng",
+      reason: "empty_html",
+      lodestone: characterUrl,
+      achievements: { [category]: [] }
+    };
+  }
+
+  const parseDate = (raw: string): string | null => {
+    const text = raw.trim();
+    if (!text) return null;
+    const match = text.match(/ldst_strftime\((\d+),\s*'YMD'\)/);
+    if (!match) return text;
+    const seconds = Number(match[1]);
+    if (!Number.isFinite(seconds)) return null;
+    const date = new Date(seconds * 1000);
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}/${m}/${d}`;
+  };
 
   $("li.entry").each((_, el) => {
     const entry = $(el);
@@ -157,27 +180,148 @@ export function parseHighEndClearsFromAchievementHtml(html: string): HighEndAchi
     if (!targetSet.has(name)) return;
 
     foundAny = true;
-    const hasDate = entry.find("time.entry__activity__time").length > 0;
-    if (hasDate) clears.add(name);
+    const rawDateText = entry.find("time.entry__activity__time").first().text();
+    const dateText = parseDate(rawDateText);
+    entries.push({ name, date: dateText });
   });
 
+  if (totalEntries === 0) {
+    return {
+      status: isPrivate ? "private" : "ng",
+      reason: isPrivate ? "achievements_private" : "structure_mismatch",
+      lodestone: characterUrl,
+      achievements: { [category]: [] }
+    };
+  }
+
+  if (!foundAny) {
+    return {
+      status: "ng",
+      reason: "structure_mismatch",
+      lodestone: characterUrl,
+      achievements: { [category]: [] }
+    };
+  }
+
   return {
-    status: foundAny ? "ok" : "private_or_unavailable",
-    clears: Array.from(clears)
+    status: "ok",
+    lodestone: characterUrl,
+    achievements: {
+      [category]: entries
+    }
   };
 }
 
+function extractAchievementDetailLinks(html: string): Map<string, string> {
+  const $ = cheerio.load(html);
+  const map = new Map<string, string>();
+
+  $("li.entry").each((_, el) => {
+    const entry = $(el);
+    const name = entry.find("p.entry__activity__txt").first().text().trim();
+    if (!name || map.has(name)) return;
+    const href = entry
+      .find("a")
+      .map((_, a) => $(a).attr("href"))
+      .get()
+      .find((h) => h && h.includes("/achievement/detail/"));
+    if (!href) return;
+    const link = href.startsWith("http") ? href : `${LODESTONE_BASE_URL}${href}`;
+    map.set(name, link.split("#")[0]);
+  });
+
+  return map;
+}
+
+function parseAchievementRequirementFromDetailHtml(html: string): string | null {
+  const $ = cheerio.load(html);
+  const text = $("p.achievement__base--text").first().text().trim();
+  return text || null;
+}
+
+async function fetchAchievementRequirement(detailUrl: string): Promise<string | null> {
+  const html = await fetchAchievementCategoryHtml(detailUrl);
+  return parseAchievementRequirementFromDetailHtml(html);
+}
+
 /**
- * 互換用: 旧API名（`parseUltimateClearsFromAchievementHtml`）。
+ * キャラクターURLとカテゴリを指定して、アチーブを取得して返します。
  */
-export function parseUltimateClearsFromAchievementHtml(html: string): HighEndAchievementParseResult {
-  return parseHighEndClearsFromAchievementHtml(html);
+export async function fetchAchievementDetailsByCategory(
+  characterUrl: string,
+  category: string
+): Promise<HighEndAchievementDetailResult> {
+  const categoryId = getAchievementCategoryId(category);
+  if (!categoryId) {
+    return {
+      status: "ng",
+      reason: "unknown_category",
+      lodestone: characterUrl,
+      achievements: { [category]: [] }
+    };
+  }
+  const achievementUrl = buildAchievementCategoryUrlByCategory(characterUrl, category);
+  if (!achievementUrl) {
+    return {
+      status: "ng",
+      reason: "invalid_character_url",
+      lodestone: characterUrl,
+      achievements: { [category]: [] }
+    };
+  }
+
+  try {
+    const html = await fetchAchievementCategoryHtml(achievementUrl);
+    const parsed = parseAchievementDetailsFromHtml(html, characterUrl, category);
+    if (parsed.status !== "ok") return parsed;
+
+    const detailLinks = extractAchievementDetailLinks(html);
+    const entries = parsed.achievements[category] ?? [];
+    let cursor = 0;
+    const concurrency = 5;
+
+    async function worker(): Promise<void> {
+      while (cursor < entries.length) {
+        const index = cursor++;
+        const entry = entries[index];
+        if (!entry || entry.requirement !== undefined) continue;
+        const link = detailLinks.get(entry.name);
+        if (!link) {
+          entry.requirement = null;
+          continue;
+        }
+        try {
+          entry.requirement = await fetchAchievementRequirement(link);
+        } catch {
+          entry.requirement = null;
+        }
+      }
+    }
+
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+    return parsed;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 403) {
+      return {
+        status: "private",
+        reason: "http_403",
+        lodestone: characterUrl,
+        achievements: { [category]: [] }
+      };
+    }
+    return {
+      status: "ng",
+      reason: "http_error",
+      lodestone: characterUrl,
+      achievements: { [category]: [] }
+    };
+  }
 }
 
 /**
  * Lodestone のアチーブメント一覧ページを取得します。
  */
-export async function fetchAchievementCategoryHtml(url: string): Promise<string> {
+async function fetchAchievementCategoryHtml(url: string): Promise<string> {
   const response = await axios.get<string>(url, {
     responseType: "text",
     headers: {

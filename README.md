@@ -4,7 +4,7 @@ FFXIV の Lodestone を使って、以下を行うための共通ライブラリ
 
 - `キャラクター名` と `サーバー名` から検索パラメータを作る
 - キャラクター検索の先頭ヒットから「キャラクターURL（/lodestone/character/.../）」を取得する
-- キャラクターの「アチーブメント（カテゴリ4）」ページから、高難度（絶/零式）の達成状況を判定する
+- Lodestone からアチーブメントの達成状況と達成要件を取得する
 
 ## 動作環境
 
@@ -21,10 +21,12 @@ yarn add @piyoraik/ffxiv-lodestone-character-lookup
 ```ts
 import {
   buildLodestoneSearchUrl,
-  fetchTopCharacterUrl,
-  buildAchievementCategoryUrl,
-  fetchAchievementCategoryHtml,
-  parseUltimateClearsFromAchievementHtml
+  fetchTopCharacterResult,
+  fetchAchievementDetailsByCategory,
+  getAllAchievementDefinitions,
+  getAchievementCategoryDefinitions,
+  getAchievementDefinitions,
+  getAchievementCategoryId
 } from "@piyoraik/ffxiv-lodestone-character-lookup";
 
 const creator = { name: "Hoge Fuga", world: "World" };
@@ -32,18 +34,40 @@ const creator = { name: "Hoge Fuga", world: "World" };
 // 1) Lodestoneの検索URLを作る
 const searchUrl = buildLodestoneSearchUrl(creator);
 
-// 2) 検索の先頭ヒットからキャラクターURLを取る
-const characterUrl = await fetchTopCharacterUrl(searchUrl);
-if (!characterUrl) throw new Error("キャラクターが見つかりませんでした");
+// 2) 検索結果の状態を取得する
+const searchResult = await fetchTopCharacterResult(searchUrl);
+if (searchResult.status !== "ok") {
+  throw new Error(`キャラクターが取得できません: ${searchResult.status}`);
+}
+const characterUrl = searchResult.characterUrl;
 
-// 3) アチーブメントページ（カテゴリ4）のURLを作る
-const achievementUrl = buildAchievementCategoryUrl(characterUrl);
-if (!achievementUrl) throw new Error("アチーブURLの生成に失敗しました");
+// 3) カテゴリ指定で取得する
+const raids = await fetchAchievementDetailsByCategory(characterUrl, "raids");
+console.log(raids);
+const fieldOps = await fetchAchievementDetailsByCategory(characterUrl, "field_ops");
+console.log(fieldOps);
+const dungeons = await fetchAchievementDetailsByCategory(characterUrl, "dungeons");
+console.log(dungeons);
 
-// 4) HTMLを取得して達成状況を判定
-const html = await fetchAchievementCategoryHtml(achievementUrl);
-const result = parseUltimateClearsFromAchievementHtml(html);
-console.log(result);
+// 定義をまとめて取得する場合
+const categories = getAchievementCategoryDefinitions();
+const allAchievements = getAllAchievementDefinitions();
+const raidsDefinitions = getAchievementDefinitions("raids");
+const raidsCategoryId = getAchievementCategoryId("raids");
+console.log(categories.length, allAchievements.length, raidsDefinitions.length, raidsCategoryId);
+
+/*
+{
+  status: "ok",
+  lodestone: "https://jp.finalfantasyxiv.com/lodestone/character/12345/",
+  achievements: {
+    raids: [
+      { name: "絶バハムートを狩りし者", date: "2014/06/10", requirement: "絶バハムート討滅戦で、バハムート・プライムを討伐する" },
+      { name: "万魔殿の辺獄を完全制覇せし者：ランク1", date: null, requirement: "万魔殿パンデモニウム零式：辺獄編を攻略する" }
+    ]
+  }
+}
+*/
 ```
 
 ## 関数一覧
@@ -51,35 +75,68 @@ console.log(result);
 | 関数 | 返り値 | 用途 |
 |---|---|---|
 | `buildLodestoneSearchUrl(info)` | `string` | キャラクター検索URLを生成 |
-| `fetchTopCharacterUrl(searchUrl)` | `Promise<string \| undefined>` | 検索結果の先頭ヒットのキャラURLを取得 |
-| `buildAchievementCategoryUrl(characterUrl)` | `string \| undefined` | カテゴリ4(レイド)のアチーブURLを生成 |
-| `fetchAchievementCategoryHtml(url)` | `Promise<string>` | アチーブHTMLを取得 |
-| `parseUltimateClearsFromAchievementHtml(html)` | `{ status, clears }` | 高難度（絶/零式）達成状況を抽出 |
-| `getHighEndAchievements()` | `HighEndAchievementDefinition[]` | 同梱定義（正式名/略称/種別）を取得 |
-| `getHighEndAchievementShortMap()` | `Map<string, string>` | `正式名 -> 略称` |
-| `getHighEndAchievementGroupMap()` | `Map<string, "ultimate" \| "savage">` | `正式名 -> 種別` |
+| `fetchTopCharacterResult(searchUrl)` | `Promise<{ status, characterUrl?, reason? }>` | 検索結果の状態を取得（非公開は `private`） |
+| `fetchAchievementDetailsByCategory(characterUrl, category)` | `Promise<{ status, lodestone, achievements, reason? }>` | カテゴリ指定で達成状況/達成要件を取得 |
+| `getAchievementDefinitions(category)` | `AchievementDefinition[]` | カテゴリ指定で定義を取得 |
+| `getAllAchievementDefinitions()` | `AchievementDefinition[]` | 全カテゴリの定義を取得 |
+| `getAchievementCategoryDefinitions()` | `AchievementCategoryDefinition[]` | カテゴリ一覧（ID/定義）を取得 |
+| `getAchievementCategoryId(category)` | `number \| undefined` | カテゴリ名からカテゴリIDを取得 |
 
-## 対応アチーブメント（高難度）
+## 対応カテゴリ一覧
+
+| category | 説明 | categoryId |
+|---|---|---|
+| `raids` | レイド（高難度） | `4` |
+| `field_ops` | 特殊フィールド探索 | `71` |
+| `dungeons` | ダンジョン | `2` |
+
+## 対応アチーブメント（カテゴリ別）
 
 このライブラリが達成判定に対応しているアチーブメントの一覧です。
 アップデートごとにベストエフォートで更新し、必要であればIssueやプルリクを頂ければ優先的に対応します。
 
-| 種別 | 略称 | 正式名 |
-|---|---|---|
-| 絶 | 絶バハ | 絶バハムートを狩りし者 |
-| 絶 | 絶テマ | 絶アルテマウェポンを破壊せし者 |
-| 絶 | 絶アレキ | 絶アレキサンダーを破壊せし者 |
-| 絶 | 絶竜詩 | 絶竜詩戦争を平定せし者 |
-| 絶 | 絶オメガ | 絶オメガ検証戦を完遂せし者 |
-| 絶 | 絶エデン | 絶もうひとつの未来を見届けし者 |
-| 零式 | 【パンデモ】辺獄 | 万魔殿の辺獄を完全制覇せし者：ランク1 |
-| 零式 | 【パンデモ】煉獄 | 万魔殿の煉獄を完全制覇せし者：ランク1 |
-| 零式 | 【パンデモ】天獄 | 万魔殿の天獄を完全制覇せし者：ランク1 |
-| 零式 | 【アルカディア】ライトヘビー | アルカディアのライトヘビー級を制覇せし者：ランク1 |
-| 零式 | 【アルカディア】クルーザー | アルカディアのクルーザー級を完全制覇せし者：ランク1 |
-| 零式 | 【アルカディア】ヘビー | アルカディアのヘビー級を完全制覇せし者：ランク1 |
+### レイド（高難度）
+| 正式名 | 達成要件 |
+|---|---|
+| 絶バハムートを狩りし者 | 絶バハムート討滅戦で、バハムート・プライムを討伐する |
+| 絶アルテマウェポンを破壊せし者 | 絶アルテマウェポン破壊作戦で、アルテマウェポンを討伐する |
+| 絶アレキサンダーを破壊せし者 | 絶アレキサンダー討滅戦で、パーフェクト・アレキサンダーを討伐する |
+| 絶竜詩戦争を平定せし者 | 絶竜詩戦争を平定する |
+| 絶オメガ検証戦を完遂せし者 | オメガの求める検証を完遂する |
+| 絶もうひとつの未来を見届けし者 | 光と闇の巫女の運命を集約させる |
+| 万魔殿の辺獄を完全制覇せし者：ランク1 | 万魔殿パンデモニウム零式：辺獄編を攻略する |
+| 万魔殿の煉獄を完全制覇せし者：ランク1 | 万魔殿パンデモニウム零式：煉獄編を攻略する |
+| 万魔殿の天獄を完全制覇せし者：ランク1 | 万魔殿パンデモニウム零式：天獄編を攻略する |
+| アルカディアのライトヘビー級を制覇せし者：ランク1 | 至天の座アルカディア：ライトヘビー級を攻略し、クエスト「次世代魔女」をコンプリートする |
+| アルカディアのクルーザー級を完全制覇せし者：ランク1 | 至天の座アルカディア零式：クルーザー級を攻略する |
+| アルカディアのヘビー級を完全制覇せし者：ランク1 | 至天の座アルカディア零式：ヘビー級を攻略する |
+
+### 特殊フィールド探索
+| 正式名 | 達成要件 |
+|---|---|
+| バルデシオンアーセナルの覇者：ランク1 | バルデシオンアーセナルを初めて攻略する |
+| ボズヤの彗星 | 堅守彗星章、勇猛彗星章、救命彗星章を、各10個入手する |
+| グンヒルド・ディルーブラムを完全制覇せし者：ランク1 | グンヒルド・ディルーブラム零式を攻略する |
+| 力の塔を制覇せし者：ランク1 | 蜃気楼の島 クレセントアイルにて、フォークタワー：力の塔を初めて攻略する |
+
+### ダンジョン
+| 正式名 | 達成要件 |
+|---|---|
+| 語り継がれし冒険譚：ランク3 | ダンジョン、討伐・討滅戦を計10,000回攻略する |
+| 孤独なる挑戦者：ランク3 | 死者の宮殿にソロでB1から突入しB200まで攻略する |
+| 埋もれた財宝：ランク7 | 埋もれた財宝を30,000個発見した |
+| ここ掘れワンワン：ランク2 | 埋もれた財宝を、魔土器：財宝感知もしくは魔科学器：財宝感知を使わずに100個発見した |
+| 孤高なる挑戦者：ランク2 | アメノミハシラにソロで1層から突入し100層まで攻略する |
+| 崇高なる挑戦者：ランク2 | オルト・エウレカにソロでB1から突入しB100まで攻略する |
+| 至高なる挑戦者：ランク2 | ピルグリム・トラバースにソロで第1巡礼路から突入し第100巡礼路まで攻略する |
+| 死せる巡礼路の果てへ | 詩想エミネントグリーフ討滅戦を供物を最大限捧げた状態で攻略する |
+| 異聞シラディハ水道を完全制覇せし者 | 異聞シラディハ水道 零式（アナザーダンジョン）を攻略する |
+| 異聞六根山を完全制覇せし者 | 異聞六根山 零式（アナザーダンジョン）を攻略する |
+| 異聞アロアロ島を完全制覇せし者 | 異聞アロアロ島 零式（アナザーダンジョン）を攻略する |
+| 異聞奇譚の勇傑 | アチーブメント「異聞シラディハ水道を完全制覇せし者」「異聞六根山を完全制覇せし者」「異聞アロアロ島を完全制覇せし者」をすべて達成する |
 
 ## 注意
 
 - Lodestone検索は「先頭ヒット」を採用します（同名が複数いる場合、意図と違うキャラに当たる可能性があります）
 - HTML構造（class名など）が変わるとパースが壊れます（その場合はバージョン更新で追随します）
+- アチーブメントの達成要件は Lodestone から引用しています
