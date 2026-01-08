@@ -131,6 +131,13 @@ export type HighEndAchievementDetailResult = {
   achievements: Record<string, AchievementEntry[]>;
 };
 
+export type AllAchievementDetailResult = {
+  status: HighEndAchievementStatus;
+  reason?: HighEndAchievementStatusReason;
+  lodestone: string;
+  achievements: Record<string, AchievementEntry[]>;
+};
+
 /**
  * アチーブメント一覧HTMLから、指定カテゴリのアチーブ達成状況を抽出します。
  *
@@ -316,6 +323,31 @@ export async function fetchAchievementDetailsByCategory(
       achievements: { [category]: [] }
     };
   }
+}
+
+/**
+ * 全カテゴリのアチーブを取得して返します。
+ */
+export async function fetchAllAchievementDetails(
+  characterUrl: string
+): Promise<AllAchievementDetailResult> {
+  const categories = getAchievementCategoryDefinitions().map((c) => c.category);
+  const result: AllAchievementDetailResult = {
+    status: "ok",
+    lodestone: characterUrl,
+    achievements: {}
+  };
+
+  for (const category of categories) {
+    const data = await fetchAchievementDetailsByCategory(characterUrl, category);
+    result.achievements[category] = data.achievements[category] ?? [];
+    if (data.status !== "ok" && result.status === "ok") {
+      result.status = data.status;
+      result.reason = data.reason;
+    }
+  }
+
+  return result;
 }
 
 /**

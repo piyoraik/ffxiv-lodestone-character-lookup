@@ -23,6 +23,7 @@ import {
   buildLodestoneSearchUrl,
   fetchTopCharacterResult,
   fetchAchievementDetailsByCategory,
+  fetchAllAchievementDetails,
   getAllAchievementDefinitions,
   getAchievementCategoryDefinitions,
   getAchievementDefinitions,
@@ -48,6 +49,10 @@ const fieldOps = await fetchAchievementDetailsByCategory(characterUrl, "field_op
 console.log(fieldOps);
 const dungeons = await fetchAchievementDetailsByCategory(characterUrl, "dungeons");
 console.log(dungeons);
+
+// 4) 全カテゴリをまとめて取得する
+const all = await fetchAllAchievementDetails(characterUrl);
+console.log(all);
 
 // 定義をまとめて取得する場合
 const categories = getAchievementCategoryDefinitions();
@@ -77,6 +82,7 @@ console.log(categories.length, allAchievements.length, raidsDefinitions.length, 
 | `buildLodestoneSearchUrl(info)` | `string` | キャラクター検索URLを生成 |
 | `fetchTopCharacterResult(searchUrl)` | `Promise<{ status, characterUrl?, reason? }>` | 検索結果の状態を取得（非公開は `private`） |
 | `fetchAchievementDetailsByCategory(characterUrl, category)` | `Promise<{ status, lodestone, achievements, reason? }>` | カテゴリ指定で達成状況/達成要件を取得 |
+| `fetchAllAchievementDetails(characterUrl)` | `Promise<{ status, lodestone, achievements, reason? }>` | 全カテゴリの達成状況/達成要件を取得 |
 | `getAchievementDefinitions(category)` | `AchievementDefinition[]` | カテゴリ指定で定義を取得 |
 | `getAllAchievementDefinitions()` | `AchievementDefinition[]` | 全カテゴリの定義を取得 |
 | `getAchievementCategoryDefinitions()` | `AchievementCategoryDefinition[]` | カテゴリ一覧（ID/定義）を取得 |
@@ -89,11 +95,13 @@ console.log(categories.length, allAchievements.length, raidsDefinitions.length, 
 | `raids` | レイド（高難度） | `4` |
 | `field_ops` | 特殊フィールド探索 | `71` |
 | `dungeons` | ダンジョン | `2` |
+| `battle_general` | バトル（全般） | `1` |
 
 ## 対応アチーブメント（カテゴリ別）
 
 このライブラリが達成判定に対応しているアチーブメントの一覧です。
 アップデートごとにベストエフォートで更新し、必要であればIssueやプルリクを頂ければ優先的に対応します。
+達成要件の更新には `npm run update-readme-requirements` を使用してください。
 
 ### レイド（高難度）
 | 正式名 | 達成要件 |
@@ -107,7 +115,7 @@ console.log(categories.length, allAchievements.length, raidsDefinitions.length, 
 | 万魔殿の辺獄を完全制覇せし者：ランク1 | 万魔殿パンデモニウム零式：辺獄編を攻略する |
 | 万魔殿の煉獄を完全制覇せし者：ランク1 | 万魔殿パンデモニウム零式：煉獄編を攻略する |
 | 万魔殿の天獄を完全制覇せし者：ランク1 | 万魔殿パンデモニウム零式：天獄編を攻略する |
-| アルカディアのライトヘビー級を制覇せし者：ランク1 | 至天の座アルカディア：ライトヘビー級を攻略し、クエスト「次世代魔女」をコンプリートする |
+| アルカディアのライトヘビー級を完全制覇せし者：ランク1 | 至天の座アルカディア零式：ライトヘビー級を攻略する |
 | アルカディアのクルーザー級を完全制覇せし者：ランク1 | 至天の座アルカディア零式：クルーザー級を攻略する |
 | アルカディアのヘビー級を完全制覇せし者：ランク1 | 至天の座アルカディア零式：ヘビー級を攻略する |
 
@@ -134,6 +142,13 @@ console.log(categories.length, allAchievements.length, raidsDefinitions.length, 
 | 異聞六根山を完全制覇せし者 | 異聞六根山 零式（アナザーダンジョン）を攻略する |
 | 異聞アロアロ島を完全制覇せし者 | 異聞アロアロ島 零式（アナザーダンジョン）を攻略する |
 | 異聞奇譚の勇傑 | アチーブメント「異聞シラディハ水道を完全制覇せし者」「異聞六根山を完全制覇せし者」「異聞アロアロ島を完全制覇せし者」をすべて達成する |
+
+### バトル（全般）
+| 正式名 | 達成要件 |
+|---|---|
+| 豪傑の青魔道士 | アチーブメント「大迷宮を極めし青魔道士」と「機工城を極めし青魔道士」を達成する |
+| 機工城を極めし青魔道士 | アチーブメント「起動せし機工城を制覇せし青魔道士」「律動せし機工城を制覇せし青魔道士」「天動せし機工城を制覇せし青魔道士」をすべて達成する |
+| 大迷宮を極めし青魔道士 | アチーブメント「始まりの大迷宮を制覇せし青魔道士」「第二の大迷宮を制覇せし青魔道士」「終わりの大迷宮を制覇せし青魔道士」をすべて達成する |
 
 ## 注意
 

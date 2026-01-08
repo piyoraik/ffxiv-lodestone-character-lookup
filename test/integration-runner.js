@@ -6,7 +6,8 @@ const {
   buildLodestoneSearchUrl,
   fetchTopCharacterResult,
   fetchAchievementDetailsByCategory,
-  getAchievementCategoryDefinitions
+  getAchievementCategoryDefinitions,
+  fetchAllAchievementDetails
 } = require("../dist");
 
 async function resolveTarget() {
@@ -38,11 +39,10 @@ async function main() {
   assert.ok(Array.isArray(raids.achievements.raids));
   assert.ok(raids.achievements.raids.length > 0);
 
+  const all = await fetchAllAchievementDetails(searchResult.characterUrl);
   const categories = getAchievementCategoryDefinitions().map((c) => c.category);
-  const all = {};
   for (const category of categories) {
-    const result = await fetchAchievementDetailsByCategory(searchResult.characterUrl, category);
-    all[category] = result;
+    if (!all.achievements[category]) all.achievements[category] = [];
   }
   console.log(JSON.stringify(all, null, 2));
 

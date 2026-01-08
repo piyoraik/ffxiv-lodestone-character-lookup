@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "category": "battle_general",
+  "categoryId": 1,
+  "achievements": [
+    { "name": "豪傑の青魔道士" },
+    { "name": "機工城を極めし青魔道士" },
+    { "name": "大迷宮を極めし青魔道士" }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "name": "@piyoraik/ffxiv-lodestone-character-lookup",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "FFXIV Lodestone character lookup (search → character URL) and high-end achievement checks",
   "license": "MIT",
   "author": "",
@@ -29,7 +29,8 @@
     "build": "tsc -p tsconfig.json && node scripts/copy-data.cjs",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "prepublishOnly": "npm run build",
-    "test": "npm run build && node --test test/achievements.test.js && node test/integration-runner.js"
+    "test": "npm run build && node --test test/achievements.test.js && node test/integration-runner.js",
+    "update-readme-requirements": "node scripts/update-readme-requirements.cjs"
   },
   "dependencies": {
     "axios": "^1.7.9",
