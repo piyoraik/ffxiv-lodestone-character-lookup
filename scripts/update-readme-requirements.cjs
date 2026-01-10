@@ -5,7 +5,7 @@ const cheerio = require("cheerio");
 
 const BASE_URL = "https://jp.finalfantasyxiv.com";
 const DEFAULT_CHARACTER_ID = "7594960";
-const README_PATH = path.join(process.cwd(), "README.md");
+const DOCS_PATH = path.join(process.cwd(), "docs", "achievements.md");
 const DATA_DIR = path.join(process.cwd(), "src", "data", "achievements");
 
 const CATEGORY_LABELS = {
@@ -73,16 +73,16 @@ function renderTable(entries) {
   return lines.join("\n");
 }
 
-function replaceSection(readme, label, tableText) {
+function replaceSection(contents, label, tableText) {
   const heading = `### ${label}`;
-  const start = readme.indexOf(heading);
-  if (start === -1) return readme;
-  const afterHeading = readme.indexOf("\n", start) + 1;
-  const rest = readme.slice(afterHeading);
-  const nextIndex = rest.search(/\n### |\n## 注意/);
-  const end = nextIndex === -1 ? readme.length : afterHeading + nextIndex;
-  const before = readme.slice(0, afterHeading);
-  const after = readme.slice(end);
+  const start = contents.indexOf(heading);
+  if (start === -1) return contents;
+  const afterHeading = contents.indexOf("\n", start) + 1;
+  const rest = contents.slice(afterHeading);
+  const nextIndex = rest.search(/\n### |\n## /);
+  const end = nextIndex === -1 ? contents.length : afterHeading + nextIndex;
+  const before = contents.slice(0, afterHeading);
+  const after = contents.slice(end);
   return `${before}${tableText}\n\n${after}`.replace(/\n{3,}/g, "\n\n");
 }
 
@@ -112,13 +112,13 @@ async function main() {
     updates[label] = renderTable(entries);
   }
 
-  let readme = fs.readFileSync(README_PATH, "utf8");
+  let docs = fs.readFileSync(DOCS_PATH, "utf8");
   for (const [label, table] of Object.entries(updates)) {
-    readme = replaceSection(readme, label, table);
+    docs = replaceSection(docs, label, table);
   }
 
-  fs.writeFileSync(README_PATH, readme);
-  console.log("README updated");
+  fs.writeFileSync(DOCS_PATH, docs);
+  console.log("docs/achievements.md updated");
 }
 
 main().catch((error) => {
