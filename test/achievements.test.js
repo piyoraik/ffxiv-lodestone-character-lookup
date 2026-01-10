@@ -27,12 +27,14 @@ test("definitions aggregate across categories", () => {
   const raids = getAchievementDefinitions("raids");
   const fieldOps = getAchievementDefinitions("field_ops");
   const dungeons = getAchievementDefinitions("dungeons");
+  const battleGeneral = getAchievementDefinitions("battle_general");
   const all = getAllAchievementDefinitions();
 
   assert.ok(raids.length > 0);
   assert.ok(fieldOps.length > 0);
   assert.ok(dungeons.length > 0);
-  assert.equal(all.length, raids.length + fieldOps.length + dungeons.length);
+  assert.ok(battleGeneral.length > 0);
+  assert.equal(all.length, raids.length + fieldOps.length + dungeons.length + battleGeneral.length);
 });
 
 test("category id lookup", () => {
